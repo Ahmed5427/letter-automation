@@ -225,6 +225,7 @@ function initializeEventListeners() {
 
 // Handle letter generation
 // Handle letter generation
+// Updated handleLetterGeneration function
 async function handleLetterGeneration(event) {
     event.preventDefault();
     
@@ -259,14 +260,23 @@ async function handleLetterGeneration(event) {
     try {
         showLoading();
         
+        // Add timeout to the frontend call as well
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, 15000); // 15 seconds total timeout
+        
         const response = await fetch(CONFIG.GENERATE_API, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(letterData)
+            body: JSON.stringify(letterData),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         console.log('Response status:', response.status);
         
@@ -284,7 +294,7 @@ async function handleLetterGeneration(event) {
             console.log('Parsed response:', result);
         } catch (parseError) {
             console.error('Failed to parse JSON:', parseError);
-            throw new Error('الاستجابة من الخادم غير صحيحة');
+            result = { letter: responseText, content: responseText };
         }
         
         // Extract the letter content
@@ -298,25 +308,37 @@ async function handleLetterGeneration(event) {
         document.getElementById('generated-letter').value = generatedLetter;
         document.getElementById('preview-section').style.display = 'block';
         
+        // Show message if using fallback
+        if (result.source === 'fallback') {
+            showNotification(result.message || 'تم استخدام النظام البديل', 'warning');
+        } else {
+            showNotification('تم إنشاء الخطاب بنجاح', 'success');
+        }
+        
         // Scroll to preview section
         document.getElementById('preview-section').scrollIntoView({ 
             behavior: 'smooth' 
         });
         
         hideLoading();
-        showNotification('تم إنشاء الخطاب بنجاح', 'success');
         
     } catch (error) {
         console.error('Error generating letter:', error);
         hideLoading();
         
         let errorMessage = 'فشل في إنشاء الخطاب';
-        if (error.message.includes('Failed to fetch')) {
+        
+        if (error.name === 'AbortError') {
+            errorMessage = 'انتهت مهلة الاتصال. سيتم استخدام المولد البديل.';
+            // Generate fallback letter
+            generateLetterManually();
+            return;
+        } else if (error.message.includes('Failed to fetch')) {
             errorMessage = 'فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت';
-        } else if (error.message.includes('HTTP 4')) {
-            errorMessage = 'خطأ في البيانات المرسلة: ' + error.message;
         } else if (error.message.includes('HTTP 5')) {
-            errorMessage = 'خطأ في الخادم: ' + error.message;
+            errorMessage = 'خطأ في الخادم. سيتم استخدام المولد البديل.';
+            generateLetterManually();
+            return;
         } else if (error.message) {
             errorMessage = 'خطأ: ' + error.message;
         }
@@ -324,7 +346,6 @@ async function handleLetterGeneration(event) {
         showNotification(errorMessage, 'error');
     }
 }
-
 // Handle save and proceed
 async function handleSaveAndProceed() {
     const letterContent = document.getElementById('generated-letter').value;
@@ -851,3 +872,44 @@ function addManualGeneratorButton() {
 setTimeout(() => {
     addManualGeneratorButton();
 }, 1000);
+
+// Test function for immediate testing
+function testNetlifyFunction() {
+    const testData = {
+        category: "طلب",
+        sub_category: "تهنئة بحدوث عيد الأضحى",
+        title: "تهنئة بحدوث عيد الأضحى",
+        recipient: "يوسف",
+        isFirst: true,
+        prompt: "تهنئة بحدوث عيد الأضحى المبارك",
+        tone: "ودي"
+    };
+    
+    fetch('/.netlify/functions/generate-letter', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Test result:', data);
+        alert('Test completed - check console');
+    })
+    .catch(error => {
+        console.error('Test error:', error);
+        alert('Test failed: ' + error.message);
+    });
+}
+
+// Add test button
+const testButton = document.createElement('button');
+testButton.textContent = 'Test Netlify Function';
+testButton.onclick = testNetlifyFunction;
+testButton.style.position = 'fixed';
+testButton.style.bottom = '20px';
+testButton.style.right = '20px';
+testButton.style.zIndex = '9999';
+testButton.className = 'btn btn-primary';
+document.body.appendChild(testButton);
