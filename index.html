@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Letter Generator - مولد الخطابات الذكي</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzAwN0M2NCIvPgo8cGF0aCBkPSJNMTAgMTJIMzBWMTZIMTBWMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTAgMThIMjZWMjJIMTBWMThaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTAgMjRIMzBWMjhIMTBWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Logo">
+                <span>مولد الخطابات الذكي</span>
+            </div>
+            <div class="nav-menu">
+                <a href="#" onclick="showPage('home')" class="nav-link active">الرئيسية</a>
+                <a href="#" onclick="showPage('create')" class="nav-link">إنشاء خطاب جديد</a>
+                <a href="#" onclick="showPage('history')" class="nav-link">سجل الخطابات</a>
+                <a href="#" onclick="showPage('review')" class="nav-link">مراجعة خطاب</a>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home-page" class="page active">
+        <div class="container">
+            <div class="hero-section">
+                <h1>مرحباً بك في مولد الخطابات الذكي</h1>
+                <p>أنشئ خطاباتك الرسمية بسهولة وسرعة باستخدام الذكاء الاصطناعي</p>
+                <div class="hero-cards">
+                    <div class="hero-card" onclick="showPage('create')">
+                        <i class="fas fa-plus-circle"></i>
+                        <h3>إنشاء خطاب جديد</h3>
+                        <p>ابدأ في إنشاء خطاب جديد باستخدام الذكاء الاصطناعي</p>
+                    </div>
+                    <div class="hero-card" onclick="showPage('history')">
+                        <i class="fas fa-history"></i>
+                        <h3>سجل الخطابات</h3>
+                        <p>تصفح وإدارة جميع الخطابات المُنشأة</p>
+                    </div>
+                    <div class="hero-card" onclick="showPage('review')">
+                        <i class="fas fa-check-circle"></i>
+                        <h3>مراجعة خطاب</h3>
+                        <p>راجع وقم بتحسين الخطابات المُنشأة</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Letter Page -->
+    <div id="create-page" class="page">
+        <div class="container">
+            <h2>إنشاء خطاب جديد</h2>
+            
+            <!-- Letter Data Section -->
+            <div class="form-section">
+                <h3>بيانات الخطاب</h3>
+                <form id="letter-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="letter-type">نوع الخطاب *</label>
+                            <select id="letter-type" required>
+                                <option value="">اختر نوع الخطاب</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="letter-purpose">الغرض من الخطاب *</label>
+                            <select id="letter-purpose" required>
+                                <option value="">اختر الغرض</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="letter-style">الأسلوب *</label>
+                            <select id="letter-style" required>
+                                <option value="">اختر الأسلوب</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>هل هذه أول مراسلة؟ *</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="first-correspondence" value="true" required> نعم</label>
+                                <label><input type="radio" name="first-correspondence" value="false" required> لا</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="recipient">المرسل إليه *</label>
+                            <input type="text" id="recipient" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="letter-title">عنوان الخطاب *</label>
+                            <input type="text" id="letter-title" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="letter-content">محتوى الخطاب *</label>
+                        <textarea id="letter-content" rows="6" required placeholder="اكتب محتوى الخطاب المطلوب..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic"></i>
+                        إنشاء الخطاب
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Preview Section -->
+            <div id="preview-section" class="form-section" style="display: none;">
+                <h3>معاينة الخطاب</h3>
+                <div class="preview-container">
+                    <textarea id="generated-letter" rows="15" placeholder="سيظهر الخطاب المُنشأ هنا..."></textarea>
+                </div>
+                
+                <div class="template-selection">
+                    <h4>اختر قالب الخطاب</h4>
+                    <div class="template-grid">
+                        <div class="template-card" data-template="1">
+                            <i class="fas fa-file-alt"></i>
+                            <span>القالب الرسمي</span>
+                        </div>
+                        <div class="template-card" data-template="2">
+                            <i class="fas fa-file-contract"></i>
+                            <span>القالب المبسط</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="save-proceed" class="btn btn-success" disabled>
+                    <i class="fas fa-save"></i>
+                    حفظ ومتابعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Page -->
+    <div id="history-page" class="page">
+        <div class="container">
+            <h2>سجل الخطابات</h2>
+            
+            <div class="filters-section">
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="ابحث عن المستلم او الرقم المرجعي للخطاب">
+                    <i class="fas fa-search"></i>
+                </div>
+                
+                <div class="filter-group">
+                    <select id="type-filter">
+                        <option value="">جميع الأنواع</option>
+                        <option value="New">جديد</option>
+                        <option value="Reply">رد</option>
+                        <option value="Follow Up">متابعة</option>
+                        <option value="Co-op">تعاون</option>
+                    </select>
+                    
+                    <select id="review-filter">
+                        <option value="">جميع حالات المراجعة</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="letters-table">
+                <table id="letters-list">
+                    <thead>
+                        <tr>
+                            <th>الرقم المرجعي</th>
+                            <th>التاريخ</th>
+                            <th>نوع الخطاب</th>
+                            <th>المراجعة</th>
+                            <th>الإرسال</th>
+                            <th>المستلم</th>
+                            <th>الموضوع</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Page -->
+    <div id="review-page" class="page">
+        <div class="container">
+            <h2>مراجعة خطاب</h2>
+            
+            <div id="letter-selection" class="form-section">
+                <h3>اختر خطاب للمراجعة</h3>
+                <select id="review-letter-select">
+                    <option value="">اختر خطاب</option>
+                </select>
+            </div>
+            
+            <div id="review-form" class="form-section" style="display: none;">
+                <div class="form-group">
+                    <label for="reviewer-name">اسم المراجع *</label>
+                    <input type="text" id="reviewer-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="letter-review-content">محتوى الخطاب</label>
+                    <textarea id="letter-review-content" rows="10"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="review-notes">الملاحظات</label>
+                    <textarea id="review-notes" rows="4" placeholder="أضف ملاحظاتك هنا..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="review-completed"> تمت المراجعة
+                    </label>
+                </div>
+                
+                <div class="review-actions">
+                    <button id="needs-improvement" class="btn btn-warning" disabled>
+                        <i class="fas fa-edit"></i>
+                        يحتاج إلى تحسينات
+                    </button>
+                    <button id="ready-to-send" class="btn btn-success" disabled>
+                        <i class="fas fa-check"></i>
+                        جاهز للإرسال
+                    </button>
+                    <button id="rejected" class="btn btn-danger" disabled>
+                        <i class="fas fa-times"></i>
+                        مرفوض
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>جاري المعالجة...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
