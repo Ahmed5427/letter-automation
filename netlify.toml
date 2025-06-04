@@ -5,6 +5,10 @@
 [build.environment]
   NODE_VERSION = "18"
 
+[functions]
+  # Increase timeout for functions (max 26 seconds on free tier)
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -16,15 +20,4 @@
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
-  status = 200
-
-# Handle function redirects
-[[redirects]]
-  from = "/generate-letter"
-  to = "/.netlify/functions/generate-letter"
-  status = 200
-
-[[redirects]]
-  from = "/archive-letter"
-  to = "/.netlify/functions/archive-letter"
   status = 200

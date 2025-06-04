@@ -2,7 +2,7 @@
 const CONFIG = {
     SPREADSHEET_ID: '1cLbTgbluZyWYHRouEgqHQuYQqKexHhu4st9ANzuaxGk',
     API_KEY: 'AIzaSyBqF-nMxyZMrjmdFbULO9I_j75hXXaiq4A',
-   GENERATE_API: '/.netlify/functions/generate-letter',
+    GENERATE_API: '/.netlify/functions/generate-letter',
     ARCHIVE_API: '/.netlify/functions/archive-letter'
 };
 
@@ -259,12 +259,13 @@ async function handleLetterGeneration(event) {
     
     try {
         showLoading();
+        showNotification('جاري إنشاء الخطاب... قد يستغرق دقيقة', 'info');
         
-        // Add timeout to the frontend call as well
+        // Long timeout - wait for real API response
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
-        }, 15000); // 15 seconds total timeout
+        }, 30000); // 30 seconds frontend timeout
         
         const response = await fetch(CONFIG.GENERATE_API, {
             method: 'POST',
@@ -284,36 +285,35 @@ async function handleLetterGeneration(event) {
         console.log('Raw response:', responseText);
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${responseText}`);
+            let errorData;
+            try {
+                errorData = JSON.parse(responseText);
+            } catch (e) {
+                errorData = { error: responseText };
+            }
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
         }
         
-        // Try to parse as JSON
+        // Parse successful response
         let result;
         try {
             result = JSON.parse(responseText);
             console.log('Parsed response:', result);
         } catch (parseError) {
             console.error('Failed to parse JSON:', parseError);
-            result = { letter: responseText, content: responseText };
+            throw new Error('استجابة غير صحيحة من الخادم');
         }
         
-        // Extract the letter content
-        generatedLetter = result.letter || result.content || result.generated_letter || result.text || responseText;
+        // Extract the letter content (only from real API)
+        const generatedLetter = result.letter || result.content || result.generated_letter || result.text;
         
         if (!generatedLetter || generatedLetter.trim() === '') {
-            throw new Error('لم يتم استلام محتوى الخطاب من الخادم');
+            throw new Error('لم يتم استلام محتوى الخطاب من API');
         }
         
         // Display the generated letter
         document.getElementById('generated-letter').value = generatedLetter;
         document.getElementById('preview-section').style.display = 'block';
-        
-        // Show message if using fallback
-        if (result.source === 'fallback') {
-            showNotification(result.message || 'تم استخدام النظام البديل', 'warning');
-        } else {
-            showNotification('تم إنشاء الخطاب بنجاح', 'success');
-        }
         
         // Scroll to preview section
         document.getElementById('preview-section').scrollIntoView({ 
@@ -321,6 +321,7 @@ async function handleLetterGeneration(event) {
         });
         
         hideLoading();
+        showNotification('تم إنشاء الخطاب بنجاح بواسطة AI', 'success');
         
     } catch (error) {
         console.error('Error generating letter:', error);
@@ -329,16 +330,15 @@ async function handleLetterGeneration(event) {
         let errorMessage = 'فشل في إنشاء الخطاب';
         
         if (error.name === 'AbortError') {
-            errorMessage = 'انتهت مهلة الاتصال. سيتم استخدام المولد البديل.';
-            // Generate fallback letter
-            generateLetterManually();
-            return;
+            errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت.';
         } else if (error.message.includes('Failed to fetch')) {
-            errorMessage = 'فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت';
-        } else if (error.message.includes('HTTP 5')) {
-            errorMessage = 'خطأ في الخادم. سيتم استخدام المولد البديل.';
-            generateLetterManually();
-            return;
+            errorMessage = 'فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.';
+        } else if (error.message.includes('408') || error.message.includes('انتهت مهلة')) {
+            errorMessage = 'انتهت مهلة الاتصال مع خادم AI. يرجى المحاولة مرة أخرى.';
+        } else if (error.message.includes('503') || error.message.includes('فشل الاتصال')) {
+            errorMessage = 'خادم AI غير متاح حالياً. يرجى المحاولة مرة أخرى لاحقاً.';
+        } else if (error.message.includes('502')) {
+            errorMessage = 'خطأ في خادم AI. يرجى المحاولة مرة أخرى.';
         } else if (error.message) {
             errorMessage = 'خطأ: ' + error.message;
         }
@@ -346,6 +346,7 @@ async function handleLetterGeneration(event) {
         showNotification(errorMessage, 'error');
     }
 }
+
 // Handle save and proceed
 async function handleSaveAndProceed() {
     const letterContent = document.getElementById('generated-letter').value;
@@ -823,93 +824,11 @@ function addAPITestButton() {
     document.body.appendChild(testButton);
 }
 
-// Add this as a fallback if the API doesn't work
-function generateLetterManually() {
-    const letterType = document.getElementById('letter-type').value;
-    const letterPurpose = document.getElementById('letter-purpose').value;
-    const letterTitle = document.getElementById('letter-title').value;
-    const recipient = document.getElementById('recipient').value;
-    const letterContent = document.getElementById('letter-content').value;
-    const letterStyle = document.getElementById('letter-style').value;
-    
-    const generatedLetter = `
-بسم الله الرحمن الرحيم
-
-${recipient} المحترم/ة
-
-السلام عليكم ورحمة الله وبركاته
-
-الموضوع: ${letterTitle}
-
-${letterContent}
-
-نتطلع إلى تعاونكم الكريم في هذا الشأن.
-
-وتقبلوا فائق الاحترام والتقدير.
-
----
-تم إنشاء هذا الخطاب باستخدام مولد الخطابات الذكي
-`;
-
-    document.getElementById('generated-letter').value = generatedLetter;
-    document.getElementById('preview-section').style.display = 'block';
-    showNotification('تم إنشاء الخطاب (نسخة تجريبية)', 'success');
+function showLoading() {
+    const loadingDiv = document.getElementById('loading');
+    const loadingText = loadingDiv.querySelector('p');
+    if (loadingText) {
+        loadingText.textContent = 'جاري إنشاء الخطاب بواسطة AI... يرجى الانتظار';
+    }
+    loadingDiv.style.display = 'flex';
 }
-
-// Add manual generator button
-function addManualGeneratorButton() {
-    const manualButton = document.createElement('button');
-    manualButton.textContent = 'إنشاء يدوي للاختبار';
-    manualButton.className = 'btn btn-secondary';
-    manualButton.type = 'button';
-    manualButton.onclick = generateLetterManually;
-    
-    const generateButton = document.querySelector('#letter-form button[type="submit"]');
-    generateButton.parentNode.insertBefore(manualButton, generateButton.nextSibling);
-}
-
-// Call this after the page loads
-setTimeout(() => {
-    addManualGeneratorButton();
-}, 1000);
-
-// Test function for immediate testing
-function testNetlifyFunction() {
-    const testData = {
-        category: "طلب",
-        sub_category: "تهنئة بحدوث عيد الأضحى",
-        title: "تهنئة بحدوث عيد الأضحى",
-        recipient: "يوسف",
-        isFirst: true,
-        prompt: "تهنئة بحدوث عيد الأضحى المبارك",
-        tone: "ودي"
-    };
-    
-    fetch('/.netlify/functions/generate-letter', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(testData)
-    })
-    .then(response => response.text())
-    .then(data => {
-        console.log('Test result:', data);
-        alert('Test completed - check console');
-    })
-    .catch(error => {
-        console.error('Test error:', error);
-        alert('Test failed: ' + error.message);
-    });
-}
-
-// Add test button
-const testButton = document.createElement('button');
-testButton.textContent = 'Test Netlify Function';
-testButton.onclick = testNetlifyFunction;
-testButton.style.position = 'fixed';
-testButton.style.bottom = '20px';
-testButton.style.right = '20px';
-testButton.style.zIndex = '9999';
-testButton.className = 'btn btn-primary';
-document.body.appendChild(testButton);

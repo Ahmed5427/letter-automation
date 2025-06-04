@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "AI Letter Generator Web App",
   "dependencies": {
-    "node-fetch": "^2.6.7",
-    "form-data": "^4.0.0"
+    "node-fetch": "^2.6.7"
   },
   "scripts": {
     "build": "echo 'No build step required'"
