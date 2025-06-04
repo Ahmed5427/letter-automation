@@ -1,4 +1,5 @@
-const fetch = require('node-fetch');
+const https = require('https');
+const http = require('http');
 
 exports.handler = async (event, context) => {
   // CORS headers
@@ -28,43 +29,68 @@ exports.handler = async (event, context) => {
     const requestData = JSON.parse(event.body);
     console.log('Parsed request data:', requestData);
 
-    console.log('Making request to external API...');
+    // Use native http module instead of node-fetch
+    const postData = JSON.stringify(requestData);
     
-    // Much longer timeout - wait for real API response
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log('Request timing out after 25 seconds');
-      controller.abort();
-    }, 25000); // 25 seconds timeout
-
-    const response = await fetch('http://128.140.37.194:5000/generate-letter', {
+    const options = {
+      hostname: '128.140.37.194',
+      port: 5000,
+      path: '/generate-letter',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
       },
-      body: JSON.stringify(requestData),
-      signal: controller.signal
+      timeout: 25000 // 25 seconds
+    };
+
+    const response = await new Promise((resolve, reject) => {
+      const req = http.request(options, (res) => {
+        let data = '';
+        
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            data: data
+          });
+        });
+      });
+
+      req.on('error', (error) => {
+        console.error('Request error:', error);
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        console.log('Request timeout');
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      req.write(postData);
+      req.end();
     });
 
-    clearTimeout(timeoutId);
-    console.log('API response status:', response.status);
+    console.log('API response status:', response.statusCode);
+    console.log('API response data:', response.data);
 
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    if (response.statusCode !== 200) {
+      throw new Error(`API returned ${response.statusCode}: ${response.data}`);
     }
-
-    const responseText = await response.text();
-    console.log('API response text:', responseText);
 
     // Try to parse as JSON
     let responseData;
     try {
-      responseData = JSON.parse(responseText);
+      responseData = JSON.parse(response.data);
     } catch (parseError) {
       console.log('Response is not JSON, treating as text');
       responseData = { 
-        letter: responseText, 
-        content: responseText,
+        letter: response.data, 
+        content: response.data,
         source: 'api' 
       };
     }
@@ -81,15 +107,12 @@ exports.handler = async (event, context) => {
     let errorMessage = 'خطأ في الخادم';
     let statusCode = 500;
     
-    if (error.name === 'AbortError') {
+    if (error.message.includes('timeout')) {
       errorMessage = 'انتهت مهلة الاتصال مع API';
-      statusCode = 408; // Request Timeout
-    } else if (error.message.includes('ECONNREFUSED')) {
+      statusCode = 408;
+    } else if (error.code === 'ECONNREFUSED') {
       errorMessage = 'فشل الاتصال بخادم API';
-      statusCode = 503; // Service Unavailable
-    } else if (error.message.includes('API returned')) {
-      errorMessage = error.message;
-      statusCode = 502; // Bad Gateway
+      statusCode = 503;
     }
     
     return {
@@ -97,8 +120,7 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ 
         error: errorMessage,
-        message: error.message,
-        type: error.name 
+        message: error.message
       })
     };
   }
