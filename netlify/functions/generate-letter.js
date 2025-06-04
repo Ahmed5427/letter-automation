@@ -1,8 +1,9 @@
-const https = require('https');
 const http = require('http');
 
 exports.handler = async (event, context) => {
-  // CORS headers
+  // Set function timeout context
+  context.callbackWaitsForEmptyEventLoop = false;
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -10,7 +11,6 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json'
   };
 
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -24,12 +24,11 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log('Function called with body:', event.body);
+    console.log('Function started at:', new Date().toISOString());
     
     const requestData = JSON.parse(event.body);
-    console.log('Parsed request data:', requestData);
+    console.log('Request data:', JSON.stringify(requestData, null, 2));
 
-    // Use native http module instead of node-fetch
     const postData = JSON.stringify(requestData);
     
     const options = {
@@ -40,12 +39,16 @@ exports.handler = async (event, context) => {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData)
-      },
-      timeout: 25000 // 25 seconds
+      }
     };
 
+    console.log('Making request to API...');
+
     const response = await new Promise((resolve, reject) => {
+      // Set a 20-second timeout for the HTTP request
       const req = http.request(options, (res) => {
+        console.log('API responded with status:', res.statusCode);
+        
         let data = '';
         
         res.on('data', (chunk) => {
@@ -53,6 +56,7 @@ exports.handler = async (event, context) => {
         });
         
         res.on('end', () => {
+          console.log('Response received at:', new Date().toISOString());
           resolve({
             statusCode: res.statusCode,
             data: data
@@ -65,35 +69,38 @@ exports.handler = async (event, context) => {
         reject(error);
       });
 
-      req.on('timeout', () => {
-        console.log('Request timeout');
+      // Set timeout for the request
+      req.setTimeout(20000, () => {
+        console.log('HTTP request timeout after 20 seconds');
         req.destroy();
-        reject(new Error('Request timeout'));
+        reject(new Error('HTTP request timeout'));
       });
 
       req.write(postData);
       req.end();
     });
 
-    console.log('API response status:', response.statusCode);
-    console.log('API response data:', response.data);
-
+    console.log('Response status:', response.statusCode);
+    
     if (response.statusCode !== 200) {
+      console.error('API error response:', response.data);
       throw new Error(`API returned ${response.statusCode}: ${response.data}`);
     }
 
-    // Try to parse as JSON
+    // Parse response
     let responseData;
     try {
       responseData = JSON.parse(response.data);
+      console.log('Parsed response successfully');
     } catch (parseError) {
       console.log('Response is not JSON, treating as text');
       responseData = { 
         letter: response.data, 
-        content: response.data,
-        source: 'api' 
+        content: response.data
       };
     }
+
+    console.log('Function completed successfully at:', new Date().toISOString());
 
     return {
       statusCode: 200,
@@ -103,15 +110,19 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Function error:', error);
+    console.error('Error occurred at:', new Date().toISOString());
     
     let errorMessage = 'خطأ في الخادم';
     let statusCode = 500;
     
     if (error.message.includes('timeout')) {
-      errorMessage = 'انتهت مهلة الاتصال مع API';
+      errorMessage = 'انتهت مهلة الاتصال مع خادم AI - يرجى المحاولة مرة أخرى';
       statusCode = 408;
     } else if (error.code === 'ECONNREFUSED') {
-      errorMessage = 'فشل الاتصال بخادم API';
+      errorMessage = 'خادم AI غير متاح حالياً';
+      statusCode = 503;
+    } else if (error.code === 'ENOTFOUND') {
+      errorMessage = 'لا يمكن الوصول إلى خادم AI';
       statusCode = 503;
     }
     
@@ -120,7 +131,8 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ 
         error: errorMessage,
-        message: error.message
+        details: error.message,
+        timestamp: new Date().toISOString()
       })
     };
   }
