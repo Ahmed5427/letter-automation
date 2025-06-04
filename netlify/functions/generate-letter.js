@@ -1,7 +1,7 @@
 const http = require('http');
 
 exports.handler = async (event, context) => {
-  // Set function timeout context
+  // Increase function timeout
   context.callbackWaitsForEmptyEventLoop = false;
   
   const headers = {
@@ -27,7 +27,7 @@ exports.handler = async (event, context) => {
     console.log('Function started at:', new Date().toISOString());
     
     const requestData = JSON.parse(event.body);
-    console.log('Request data:', JSON.stringify(requestData, null, 2));
+    console.log('Parsed request data:', JSON.stringify(requestData, null, 2));
 
     const postData = JSON.stringify(requestData);
     
@@ -44,43 +44,54 @@ exports.handler = async (event, context) => {
 
     console.log('Making request to API...');
 
-    const response = await new Promise((resolve, reject) => {
-      // Set a 20-second timeout for the HTTP request
-      const req = http.request(options, (res) => {
-        console.log('API responded with status:', res.statusCode);
-        
-        let data = '';
-        
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          console.log('Response received at:', new Date().toISOString());
-          resolve({
-            statusCode: res.statusCode,
-            data: data
+    // Reduce the HTTP timeout to ensure we get a response before Netlify times out
+    const response = await Promise.race([
+      new Promise((resolve, reject) => {
+        const req = http.request(options, (res) => {
+          console.log('API responded with status:', res.statusCode);
+          
+          let data = '';
+          
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          
+          res.on('end', () => {
+            console.log('Response received at:', new Date().toISOString());
+            console.log('Response data length:', data.length);
+            resolve({
+              statusCode: res.statusCode,
+              data: data
+            });
           });
         });
-      });
 
-      req.on('error', (error) => {
-        console.error('Request error:', error);
-        reject(error);
-      });
+        req.on('error', (error) => {
+          console.error('Request error:', error);
+          reject(error);
+        });
 
-      // Set timeout for the request
-      req.setTimeout(20000, () => {
-        console.log('HTTP request timeout after 20 seconds');
-        req.destroy();
-        reject(new Error('HTTP request timeout'));
-      });
+        // Set shorter timeout - 8 seconds to stay under Netlify's 10s limit
+        req.setTimeout(8000, () => {
+          console.log('HTTP request timeout after 8 seconds');
+          req.destroy();
+          reject(new Error('HTTP request timeout'));
+        });
 
-      req.write(postData);
-      req.end();
-    });
+        req.write(postData);
+        req.end();
+      }),
+      
+      // Also add a Promise.race timeout as backup
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Function timeout - taking too long'));
+        }, 9000); // 9 seconds total function timeout
+      })
+    ]);
 
     console.log('Response status:', response.statusCode);
+    console.log('Response data preview:', response.data.substring(0, 200) + '...');
     
     if (response.statusCode !== 200) {
       console.error('API error response:', response.data);
@@ -116,13 +127,10 @@ exports.handler = async (event, context) => {
     let statusCode = 500;
     
     if (error.message.includes('timeout')) {
-      errorMessage = 'انتهت مهلة الاتصال مع خادم AI - يرجى المحاولة مرة أخرى';
+      errorMessage = 'الخادم يستغرق وقتاً أطول من المتوقع';
       statusCode = 408;
     } else if (error.code === 'ECONNREFUSED') {
       errorMessage = 'خادم AI غير متاح حالياً';
-      statusCode = 503;
-    } else if (error.code === 'ENOTFOUND') {
-      errorMessage = 'لا يمكن الوصول إلى خادم AI';
       statusCode = 503;
     }
     
