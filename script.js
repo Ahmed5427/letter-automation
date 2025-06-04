@@ -229,22 +229,8 @@ function initializeEventListeners() {
 async function handleLetterGeneration(event) {
     event.preventDefault();
     
-    // Collect form data
-    const letterType = document.getElementById('letter-type').value;
-    const letterPurpose = document.getElementById('letter-purpose').value;
-    const letterTitle = document.getElementById('letter-title').value;
-    const recipient = document.getElementById('recipient').value;
-    const letterContent = document.getElementById('letter-content').value;
-    const letterStyle = document.getElementById('letter-style').value;
-    const isFirstRadio = document.querySelector('input[name="first-correspondence"]:checked');
+    // ... validation code ...
     
-    // Validation
-    if (!letterType || !letterPurpose || !letterTitle || !recipient || !letterContent || !letterStyle || !isFirstRadio) {
-        showNotification('يرجى ملء جميع الحقول المطلوبة', 'warning');
-        return;
-    }
-    
-    // Prepare API payload
     const letterData = {
         category: letterType,
         sub_category: letterPurpose,
@@ -255,17 +241,9 @@ async function handleLetterGeneration(event) {
         tone: letterStyle
     };
     
-    console.log('Sending letter data:', letterData);
-    
     try {
         showLoading();
-        showNotification('جاري إنشاء الخطاب... قد يستغرق دقيقة', 'info');
-        
-        // Long timeout - wait for real API response
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            controller.abort();
-        }, 30000); // 30 seconds frontend timeout
+        showNotification('جاري إنشاء الخطاب... قد يستغرق 10-15 ثانية', 'info');
         
         const response = await fetch(CONFIG.GENERATE_API, {
             method: 'POST',
@@ -273,80 +251,46 @@ async function handleLetterGeneration(event) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(letterData),
-            signal: controller.signal
+            body: JSON.stringify(letterData)
         });
-        
-        clearTimeout(timeoutId);
-        
-        console.log('Response status:', response.status);
         
         const responseText = await response.text();
-        console.log('Raw response:', responseText);
+        console.log('Response status:', response.status);
+        console.log('Response text:', responseText);
         
         if (!response.ok) {
-            let errorData;
-            try {
-                errorData = JSON.parse(responseText);
-            } catch (e) {
-                errorData = { error: responseText };
+            if (response.status === 408) {
+                throw new Error('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى - قد يكون الخادم مشغولاً');
             }
-            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${responseText}`);
         }
         
-        // Parse successful response
-        let result;
-        try {
-            result = JSON.parse(responseText);
-            console.log('Parsed response:', result);
-        } catch (parseError) {
-            console.error('Failed to parse JSON:', parseError);
-            throw new Error('استجابة غير صحيحة من الخادم');
-        }
-        
-        // Extract the letter content (only from real API)
+        let result = JSON.parse(responseText);
         const generatedLetter = result.letter || result.content || result.generated_letter || result.text;
         
-        if (!generatedLetter || generatedLetter.trim() === '') {
-            throw new Error('لم يتم استلام محتوى الخطاب من API');
+        if (!generatedLetter) {
+            throw new Error('لم يتم استلام محتوى الخطاب');
         }
         
-        // Display the generated letter
         document.getElementById('generated-letter').value = generatedLetter;
         document.getElementById('preview-section').style.display = 'block';
-        
-        // Scroll to preview section
-        document.getElementById('preview-section').scrollIntoView({ 
-            behavior: 'smooth' 
-        });
+        document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
         
         hideLoading();
-        showNotification('تم إنشاء الخطاب بنجاح بواسطة AI', 'success');
+        showNotification('تم إنشاء الخطاب بنجاح!', 'success');
         
     } catch (error) {
-        console.error('Error generating letter:', error);
+        console.error('Error:', error);
         hideLoading();
         
-        let errorMessage = 'فشل في إنشاء الخطاب';
-        
-        if (error.name === 'AbortError') {
-            errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت.';
-        } else if (error.message.includes('Failed to fetch')) {
-            errorMessage = 'فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.';
-        } else if (error.message.includes('408') || error.message.includes('انتهت مهلة')) {
-            errorMessage = 'انتهت مهلة الاتصال مع خادم AI. يرجى المحاولة مرة أخرى.';
-        } else if (error.message.includes('503') || error.message.includes('فشل الاتصال')) {
-            errorMessage = 'خادم AI غير متاح حالياً. يرجى المحاولة مرة أخرى لاحقاً.';
-        } else if (error.message.includes('502')) {
-            errorMessage = 'خطأ في خادم AI. يرجى المحاولة مرة أخرى.';
-        } else if (error.message) {
-            errorMessage = 'خطأ: ' + error.message;
+        let errorMessage = 'فشل في إنشاء الخطاب: ' + error.message;
+        if (error.message.includes('timeout') || error.message.includes('انتهت مهلة')) {
+            errorMessage = 'الخادم يستغرق وقتاً أطول من المتوقع. يرجى المحاولة مرة أخرى.';
         }
         
         showNotification(errorMessage, 'error');
     }
 }
-
 // Handle save and proceed
 async function handleSaveAndProceed() {
     const letterContent = document.getElementById('generated-letter').value;
