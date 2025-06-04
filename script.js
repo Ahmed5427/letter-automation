@@ -2,8 +2,8 @@
 const CONFIG = {
     SPREADSHEET_ID: '1cLbTgbluZyWYHRouEgqHQuYQqKexHhu4st9ANzuaxGk',
     API_KEY: 'AIzaSyBqF-nMxyZMrjmdFbULO9I_j75hXXaiq4A',
-    GENERATE_API: 'http://128.140.37.194:5000/generate-letter',
-    ARCHIVE_API: 'http://128.140.37.194:5000/archive-letter'
+   GENERATE_API: '/.netlify/functions/generate-letter',
+    ARCHIVE_API: '/.netlify/functions/archive-letter'
 };
 
 // Global variables
